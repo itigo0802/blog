@@ -10,6 +10,27 @@ Spring Frameworkの理解を深めるための学習用アプリ。会員制ブ�
 - MyBatis(XML方式)によるSQLベースのデータアクセスに慣れる
 - ロールベースのアクセス制御、CSRF対策など実務で必要な知識を身につける
 
+## 学習方針
+
+### 前提知識
+- TODOアプリ(itigo0802/todo-app)はSpringを使わない素のJavaで実装済み。CRUDや基本設計の考え方はそこで経験済みだが、Spring自体(DI、MVC、Bean管理など)は触ったことはあるものの理解は浅い
+- Spring Securityも同様に「用語は知っているが自分の手で実装した経験は薄い」レベル。`SecurityFilterChain`や`DaoAuthenticationProvider`などSpring/Spring Securityの基礎概念は、該当箇所の実装時に簡潔に説明する
+
+### 実装の役割分担
+学習効果が高い(=このプロジェクトの核心である)部分は人間が書き、定型的な部分はClaudeが用意する。
+
+| 領域 | 誰が書くか | 理由 |
+|---|---|---|
+| `SecurityConfig`(認証・認可の中核設定) | 人間 | 学習目的そのもの |
+| 権限判定ロジック(投稿者本人 or 管理者のチェックなど) | 人間 | ロールベースアクセス制御の要 |
+| MyBatis: JOINや動的SQL(`<if>`/`<where>`など)を使う複雑なクエリ | 人間 | MyBatisならではの学びどころ |
+| MyBatis: 単純CRUD(1テーブルへの基本INSERT/SELECT/UPDATE/DELETE) | Claude | 定型作業で学習効果が薄い |
+| Thymeleafテンプレート(HTML/CSS)、domain/Mapperインターフェースの雛形 | Claude | Spring本体の学習と直接関係が薄いボイラープレート |
+
+### 進め方
+- 人間が書く範囲は、Claudeが先に雛形・呼び出し元・関連コードを用意し、`TODO(human)`を残して実装を依頼する
+- 詰まった場合は、いきなり完成コードを渡さず、まず考慮すべき観点(ヒント)を提示する。それでも進まない場合は解説付きで実装する
+
 ## プロジェクト情報
 
 | 項目 | 値 |
