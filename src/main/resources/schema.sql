@@ -1,0 +1,30 @@
+DROP TABLE IF EXISTS comments;
+DROP TABLE IF EXISTS posts;
+DROP TABLE IF EXISTS users;
+
+CREATE TABLE users (
+    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+    username   VARCHAR(50)  NOT NULL UNIQUE,
+    email      VARCHAR(255) NOT NULL UNIQUE,
+    password   VARCHAR(255) NOT NULL,
+    role       VARCHAR(20)  NOT NULL DEFAULT 'USER' CHECK (role IN ('USER', 'ADMIN')),
+    enabled    BOOLEAN      NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE posts (
+    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+    title      VARCHAR(200) NOT NULL,
+    content    CLOB         NOT NULL,
+    author_id  BIGINT       NOT NULL REFERENCES users (id),
+    created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE comments (
+    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+    content    VARCHAR(1000) NOT NULL,
+    post_id    BIGINT        NOT NULL REFERENCES posts (id) ON DELETE CASCADE,
+    author_id  BIGINT        NOT NULL REFERENCES users (id),
+    created_at TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
