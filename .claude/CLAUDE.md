@@ -90,13 +90,17 @@ src/main/resources/
 
 ## 実装の進め方(推奨順序)
 
-1. Spring Initializrでプロジェクト作成(上記依存関係を選択)
-2. pom.xmlに`spring-boot-starter-thymeleaf`を追加、DDL(schema.sql)とapplication.ymlの設定(application.propertiesから変換)
-3. User関連のMapper(XML)実装 → `UserDetailsService`実装
-4. `SecurityConfig`でフォームログイン・PasswordEncoder(BCrypt)を設定
-5. Post/CommentのCRUD実装(MyBatis XML)
-6. 認可制御の追加(投稿者本人チェックなど、SpEL or Service層)
-7. エラーハンドリング(未ログイン→ログイン画面、権限なし→403)
+- [x] 1. Spring Initializrでプロジェクト作成(上記依存関係を選択)
+- [x] 2. pom.xmlに`spring-boot-starter-thymeleaf`を追加、DDL(schema.sql)とapplication.ymlの設定(application.propertiesから変換)
+- [x] 3. User関連のMapper(XML)実装 → `UserDetailsService`実装
+- [x] 4. `SecurityConfig`でフォームログイン・PasswordEncoder(BCrypt)を設定
+  - 動作確認用に`AuthController`/`RegisterForm`/`UserService`/`login.html`/`register.html`も作成済み
+  - curlで登録→ログイン成功/失敗→CSRF拒否まで手動テスト済み
+  - `/error`と`/h2-console/**`をpermitAllにする追加対応が必要だった(下記の注意点を参照)
+- [ ] 5. Post/CommentのCRUD実装(MyBatis XML) ← **次回はここから**
+  - 役割分担: 単純CRUD(Mapper雛形)はClaude、JOIN/動的SQLを使う複雑なクエリは人間
+- [ ] 6. 認可制御の追加(投稿者本人チェックなど、SpEL or Service層)
+- [ ] 7. エラーハンドリング(未ログイン→ログイン画面、権限なし→403)
 
 ## 実装時の注意点(過去の議論より)
 
@@ -107,6 +111,8 @@ src/main/resources/
 - MyBatisには遅延ロードがないため、関連データ取得はJOINまたは複数クエリで明示的に行う
 - Lombokの`@Data`は関連エンティティ(User⇔Postなど)を持つクラスに付けると`equals`/`hashCode`/`toString`で無限ループになりうるため、domainクラスでは`@Getter`/`@Setter`など個別アノテーションを基本とする
 - BANされたユーザー(enabled=false)のログイン試行は`DisabledException`となり、`UserDetailsService`側で明示的にハンドリングしないとログイン画面に汎用エラーしか出せない点に注意
+- `authorizeHttpRequests`はデフォルトで`FORWARD`/`ERROR`ディスパッチにも適用される。Spring Bootの404などは内部的に`/error`へフォワードされるため、`/error`を`permitAll`しないと「本来公開のはずのページなのに未ログイン時だけログイン画面に飛ばされる」という紛らわしい挙動になる
+- H2コンソール(`/h2-console/**`)を使うには、`permitAll`に加えて①`headers().frameOptions().sameOrigin()`(デフォルトの`X-Frame-Options: DENY`だとiframe表示できない)②`csrf().ignoringRequestMatchers("/h2-console/**")`(H2コンソール自身のフォームはCSRFトークンを付与しない)の2点が追加で必要
 
 ## コーディング方針
 
