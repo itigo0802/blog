@@ -127,6 +127,12 @@ src/main/resources/
     - H2コンソールへの接続時、`login.jsp`から`Connect`をクリックすると`login.do`に遷移するだけでSQL実行フレームが無い状態になることがあった。`/h2-console/frame.jsp?jsessionid=...`に直接遷移すると、スキーマツリー+SQL入力欄+結果表示が揃った正しいフレームで操作できた
   - 5パターン確認: ①管理者が他人をBAN→一覧が「BAN中」に ②管理者が自分自身をBAN→`SelfBanException`経由で400ページ ③BAN中ユーザーのログイン試行→`/login?error`へリダイレクト(汎用メッセージなのは既知の制限、注意点参照) ④BAN解除→「有効」に復帰 ⑤ロールがUSERのままだとnavに「ユーザー管理」リンクが出ない(`sec:authorize="hasRole('ADMIN')"`)こともあわせて確認
   - ブラウザ操作中、ログインフォームにChromeが過去の別セッションの認証情報(実際のメールアドレス)を自動入力する場面があった。フォームの値をアプリ側で明示的に上書きしてから送信することで対応(実運用コードの自動テストでも同様の配慮が必要になる場面)
+- [x] 9. 自動テスト(JUnit + Mockito)の導入
+  - pom.xmlは追加設定不要だった。Spring Boot 4.xでは旧来の`spring-boot-starter-test`が`spring-boot-starter-security-test`/`spring-boot-starter-webmvc-test`/`spring-boot-starter-validation-test`などに分割されており、Initializr生成時点でJUnit5・AssertJ・Mockito・MockMvcがすでに`test`スコープで入っていた
+  - `AuthorizationServiceTest`: `canModify()`は依存を持たない純粋ロジックなので`@SpringBootTest`でコンテナを起動せず`new AuthorizationService()`で直接テスト。投稿者本人/管理者/他人/`Long`境界値(id=200、Step6の`==`バグの再発防止)の4パターンを人間が実装
+  - `UserServiceTest`: `UserService`は`UserMapper`(DB)に依存するため`@ExtendWith(MockitoExtension.class)`+`@Mock`で初めてMockitoを使用。他人BAN成功(Claudeがサンプル実装)/自己BAN時の`SelfBanException`と`updateEnabled()`が呼ばれないこと(`verify(..., never())`、人間が実装)の2パターン
+  - ハマりポイント: `assertThatThrownBy(() -> userService.ban(...))`の直前に、ラムダに包まない素の`userService.ban(...)`呼び出しを書き残してしまい、その場で例外が飛んでテスト自体がErrorになった。`() -> ...`(ラムダ)は「後で実行される処理」であり、ラムダの外に書いたコードは通常通りその場で即時評価される、という違いを実演して確認した
+  - 全7件(既存の`BlogApplicationTests`含む)がパスすることを確認してからコミット
 
 ## 実装時の注意点(過去の議論より)
 
