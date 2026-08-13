@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>ページが見つかりません - Blog</title>
+</head>
+<body>
+<h1>404 Not Found</h1>
+<p th:text="${message} ?: 'お探しのページは見つかりませんでした。'"></p>
+<p><a th:href="@{/posts}">投稿一覧に戻る</a></p>
+</body>
+</html>

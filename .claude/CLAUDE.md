@@ -110,7 +110,13 @@ src/main/resources/
   - 実装時のハマりポイント: `principal.getId() == resourceAuthorId`と`Long`同士を`==`で比較するとバグる(`Long`のキャッシュは`-128〜127`のみ。id=200なら本人でも`false`になる)。`.equals()`で修正。jshellで`Long a=200L; Long b=200L; a==b`が`false`になることを実演して確認した
   - curlでの本人/非所有者テストに加え、管理者ケースは`AuthorizationService`を直接実行するスタンドアロンJavaプログラムで確認(H2コンソールへcurlでログインするより簡便なため)。3パターン(管理者は他人の投稿もOK、id=200の本人はOK、他人はNG)とも想定通り
   - GET `/posts/{id}/edit`自体はSecurityConfig上「認証済みなら誰でも」到達可能(所有者チェックはService層のみ)。つまり非所有者でも編集フォームは開けるが、実際の更新はサーバー側で拒否される、という設計になっている
-- [ ] 7. エラーハンドリング(未ログイン→ログイン画面、権限なし→403) ← **次回はここから**
+- [x] 7. エラーハンドリング(未ログイン→ログイン画面、権限なし→403)
+  - `templates/error/403.html`・`error/404.html`を追加。Spring Bootの`DefaultErrorViewResolver`が`/error`到達時にステータスコードから自動でテンプレートを探す規約に乗るだけで、403側は追加のJavaコード不要だった
+  - `exception.GlobalExceptionHandler`(`@ControllerAdvice`)を追加し、`NoSuchElementException`(投稿/コメント未検出)を404として扱うようにした。`AccessDeniedException`はあえてハンドラ対象に含めていない(`@ControllerAdvice`はDispatcherServlet内、Spring Securityの自動403変換はServlet Filter層で動くため、横取りすると自動変換と競合する)
+  - 実装のポイント: `@ExceptionHandler`メソッドは戻り値のビュー名だけでは200 OKになってしまうため、`HttpServletResponse#setStatus()`で明示的に404を設定する必要がある。例外メッセージ(内部IDを含む)は画面には汎用メッセージのみ表示し、詳細はログにのみ残す設計にした
+  - ログレベルの検討: 「存在しないURLへのアクセス」は日常的に起こりうる正常な事象なので`ERROR`ではなく`WARN`を採用(ERRORでアラート連携している場合に無駄な通知が飛ぶのを避けるため)
+  - curlでの検証時、403ページがJSON応答になって見えたことがあったが、これはcurlのデフォルト`Accept: */*`がSpring Bootの`BasicErrorController`のコンテントネゴシエーションでHTML側に倒れなかっただけで、`Accept: text/html`を明示すれば独自テンプレートが返ることを確認済み(実ブラウザは常にtext/htmlを明示するため実害なし)
+  - 未ログイン→ログイン画面はStep4のformLoginの仕組みで既に動作済み(今回は回帰がないことのみ再確認)
 
 ## 実装時の注意点(過去の議論より)
 
@@ -126,6 +132,8 @@ src/main/resources/
 - H2コンソール(`/h2-console/**`)を使うには、`permitAll`に加えて①`headers().frameOptions().sameOrigin()`(デフォルトの`X-Frame-Options: DENY`だとiframe表示できない)②`csrf().ignoringRequestMatchers("/h2-console/**")`(H2コンソール自身のフォームはCSRFトークンを付与しない)の2点が追加で必要
 - `users`/`posts`/`comments`は全テーブルに`created_at`列があるため、JOINしたSELECTで`ORDER BY created_at`のようにテーブル修飾を省略すると曖昧になり得る。H2ではSELECT句に出したテーブルの列で解決されエラーにはならなかったが(実機確認済み)、DBエンジン依存の挙動なので`ORDER BY posts.created_at`のように明示するのが望ましい
 - Thymeleafで`sec:authorize`を使うには`thymeleaf-extras-springsecurity6`をpom.xmlに追加する必要がある(Spring Boot本体には含まれない)
+- curlでエラーページ(`/error`経由のもの)を検証するとき、`Accept`ヘッダを省略するとcurlは`*/*`を送るが、Spring Bootの`BasicErrorController`はそれだとJSON応答を返すことがある。`templates/error/<status>.html`が使われているかを確認したいときは`-H "Accept: text/html"`を明示すること(実ブラウザは常にtext/htmlを明示するのでアプリ側の実害はない)
+- `@ControllerAdvice`の`@ExceptionHandler`はDispatcherServlet内(Spring MVCの中)で例外を横取りする。Spring Securityの`AccessDeniedException`自動403変換はServlet Filter層(`ExceptionTranslationFilter`)で動くため、`@ExceptionHandler(AccessDeniedException.class)`を書くとその自動変換を奪ってしまう。棲み分けが必要な場合は対象の例外クラスを分けること
 - 編集・削除フォームを`sec:authorize="isAuthenticated()"`で非表示にしていても、それはUI上の話でしかない。未ログインユーザーが直接POSTを叩いた場合の挙動もcurlで確認する価値がある(本アプリでは想定通り、有効なCSRFトークンがあれば`/login`へ302リダイレクトされ、実際には削除されないことを確認済み)
 
 ## コーディング方針
