@@ -50,7 +50,7 @@ Spring Frameworkの理解を深めるための学習用アプリ。会員制ブ�
 | View | Thymeleaf (SSR) | RESTは採用しない。formLoginとの親和性・CSRFトークンの自動埋め込みを優先 |
 | データアクセス | MyBatis (XML方式) | JPAは不採用。SQLを直接記述する |
 | DB | H2 (インメモリ) | 学習用途のため。起動が速くイテレーションしやすい |
-| 認証 | Spring Security | フォームログイン → 将来的にJWT/OAuth2へ拡張予定 |
+| 認証 | Spring Security | フォームログイン(セッション方式)。JWT/OAuth2は検討の上、当面は見送り(下記「実装時の注意点」参照) |
 | バリデーション | Spring Validation | `@Valid` |
 | その他 | Lombok | POJOのgetter/setter等のボイラープレート削減 |
 
@@ -148,6 +148,7 @@ src/main/resources/
 - 業務エラー用の独自例外は`RuntimeException`(非チェック例外)を継承するのが定石。チェック例外(`Exception`直下、`RuntimeException`の子孫でないもの)は`throws`宣言をコンパイラが強制するため、層を跨ぐたびに関係ない中間層まで宣言が伝播してしまう。Spring自身も`SQLException`(チェック例外)を`DataAccessException`(非チェック例外)でラップし直している
 - H2コンソール(`/h2-console/**`)はフレーム構成のページ。`login.jsp`→`Connect`後に遷移する`login.do`だけではSQL実行用フレームが無い場合があるため、ブラウザで直接操作するときは`/h2-console/frame.jsp?jsessionid=...`(スキーマツリー+SQL入力欄+結果表示が揃ったフレーム)に遷移すると確実
 - ログインフォームなどをブラウザ自動化で操作する際、Chromeが別セッションの保存済み認証情報を自動入力することがある。送信前にフォームの値をコード側で明示的に上書きし、実際に何を送信しているか確認してから進めるべき
+- JWT/OAuth2への拡張は、Step8完了時点で検討し、当面見送りと判断した。理由: ①JWTの強み(ステートレス、セッション不要)はフロント/バックエンドが別ドメインのSPA・モバイル構成で活きるものであり、今のThymeleaf SSR構成に導入すると`formLogin`+セッションの単純さ・CSRF自動対応を手放すだけの「退化的な変更」になりやすい ②OAuth2ログイン(Googleなど)はコードの外側でプロバイダーへのアプリ登録(client id/secret発行)が必要になり、コーディング学習の範囲を超える準備コストが発生する。将来SPA + REST APIへ作り替える段階になれば、その時点で再検討する
 
 ## コーディング方針
 
