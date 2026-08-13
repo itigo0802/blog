@@ -3,7 +3,10 @@ package com.itigotti.blog.service;
 import com.itigotti.blog.domain.Post;
 import com.itigotti.blog.dto.PostForm;
 import com.itigotti.blog.mapper.PostMapper;
+import com.itigotti.blog.security.AuthorizationService;
+import com.itigotti.blog.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,6 +17,7 @@ import java.util.NoSuchElementException;
 public class PostService {
 
     private final PostMapper postMapper;
+    private final AuthorizationService authorizationService;
 
     public List<Post> findAll() {
         return postMapper.findAll();
@@ -35,15 +39,21 @@ public class PostService {
         postMapper.insert(post);
     }
 
-    // 投稿者本人/管理者チェックはStep6でController or ここに追加する
-    public void update(Long id, PostForm form) {
+    public void update(Long id, PostForm form, CustomUserDetails principal) {
         Post post = findById(id);
+        if (!authorizationService.canModify(post.getAuthorId(), principal)) {
+            throw new AccessDeniedException("この投稿を編集する権限がありません");
+        }
         post.setTitle(form.getTitle());
         post.setContent(form.getContent());
         postMapper.update(post);
     }
 
-    public void delete(Long id) {
+    public void delete(Long id, CustomUserDetails principal) {
+        Post post = findById(id);
+        if (!authorizationService.canModify(post.getAuthorId(), principal)) {
+            throw new AccessDeniedException("この投稿を削除する権限がありません");
+        }
         postMapper.deleteById(id);
     }
 }

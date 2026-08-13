@@ -103,13 +103,20 @@ src/main/resources/
   - curlで登録→ログイン→投稿作成→一覧/詳細表示→コメント投稿→編集→コメント削除→ログアウト→匿名での削除拒否(CSRF token不在時403、有効token時は/loginへ302)まで一通り手動テスト済み
   - `Post`/`Comment`ドメインに`authorUsername`という非永続フィールドを追加し、JOIN結果のみそこに詰める設計にした(insert/updateでは使わない)
   - Post/Comment編集・削除は現時点では「ログイン済みなら誰でも可能」。投稿者本人/管理者チェックはStep6で追加する(コード中に`// 投稿者本人/管理者チェックはStep6で追加する`とコメントあり)
-- [ ] 6. 認可制御の追加(投稿者本人チェックなど、SpEL or Service層) ← **次回はここから**
-- [ ] 7. エラーハンドリング(未ログイン→ログイン画面、権限なし→403)
+- [x] 6. 認可制御の追加(投稿者本人チェックなど、SpEL or Service層)
+  - `security.AuthorizationService#canModify(resourceAuthorId, principal)`に「投稿者本人 or 管理者」判定を集約し、Post/Commentの両方から利用(重複防止)。SpELではなくService層でのチェックを採用
+  - `PostService.update/delete`・`CommentService.delete`で判定し、falseなら`AccessDeniedException`をthrow → Spring Securityの`ExceptionTranslationFilter`が捕捉して自動的に403へ変換される(カスタムハンドラ未設定でも動作する)
+  - `CustomUserDetails`に`getRole()`を追加(既存の`getId()`と合わせて判定に使用)
+  - 実装時のハマりポイント: `principal.getId() == resourceAuthorId`と`Long`同士を`==`で比較するとバグる(`Long`のキャッシュは`-128〜127`のみ。id=200なら本人でも`false`になる)。`.equals()`で修正。jshellで`Long a=200L; Long b=200L; a==b`が`false`になることを実演して確認した
+  - curlでの本人/非所有者テストに加え、管理者ケースは`AuthorizationService`を直接実行するスタンドアロンJavaプログラムで確認(H2コンソールへcurlでログインするより簡便なため)。3パターン(管理者は他人の投稿もOK、id=200の本人はOK、他人はNG)とも想定通り
+  - GET `/posts/{id}/edit`自体はSecurityConfig上「認証済みなら誰でも」到達可能(所有者チェックはService層のみ)。つまり非所有者でも編集フォームは開けるが、実際の更新はサーバー側で拒否される、という設計になっている
+- [ ] 7. エラーハンドリング(未ログイン→ログイン画面、権限なし→403) ← **次回はここから**
 
 ## 実装時の注意点(過去の議論より)
 
 - `map-underscore-to-camel-case: true` を設定し、DBのスネークケースとJavaのキャメルケースを自動変換する
-- 「投稿者本人 or 管理者」の判定は `@PreAuthorize` のSpELだけでは不十分な場合があり、Service層でのチェックも検討する
+- 「投稿者本人 or 管理者」の判定は `@PreAuthorize` のSpELだけでは不十分な場合があり、Service層でのチェックも検討する(Step6では`AuthorizationService`にService層で実装した)
+- ユーザーIDなど`Long`型の値をIDで比較するときは`==`ではなく`.equals()`を使う。`Long`のオートボクシングキャッシュは`-128〜127`のみのため、範囲外の値では`==`が意図せず`false`になる(自分のリソースなのに他人扱いされるバグにつながる)
 - User-Post間は最初は単方向(Post→User)にし、双方向による複雑化を避ける
 - PasswordEncoderは必ずBean登録し、平文パスワード保存を避ける
 - MyBatisには遅延ロードがないため、関連データ取得はJOINまたは複数クエリで明示的に行う

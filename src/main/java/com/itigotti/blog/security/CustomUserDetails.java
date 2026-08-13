@@ -1,5 +1,6 @@
 package com.itigotti.blog.security;
 
+import com.itigotti.blog.domain.Role;
 import com.itigotti.blog.domain.User;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -23,6 +24,10 @@ public class CustomUserDetails implements UserDetails {
 
     public Long getId() {
         return user.getId();
+    }
+
+    public Role getRole() {
+        return user.getRole();
     }
 
     @Override

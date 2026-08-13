@@ -69,18 +69,18 @@ public class PostController {
 
     @PostMapping("/posts/{id}/edit")
     public String edit(@PathVariable Long id, @Valid @ModelAttribute PostForm postForm, BindingResult bindingResult,
-                        Model model) {
+                        Model model, @AuthenticationPrincipal CustomUserDetails principal) {
         if (bindingResult.hasErrors()) {
             model.addAttribute("postId", id);
             return "post-form";
         }
-        postService.update(id, postForm);
+        postService.update(id, postForm, principal);
         return "redirect:/posts/" + id;
     }
 
     @PostMapping("/posts/{id}/delete")
-    public String delete(@PathVariable Long id) {
-        postService.delete(id);
+    public String delete(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails principal) {
+        postService.delete(id, principal);
         return "redirect:/posts";
     }
 }
