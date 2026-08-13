@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${post.title} + ' - Blog'"></title>
+</head>
+<body>
+<nav>
+    <a th:href="@{/posts}">投稿一覧へ戻る</a>
+</nav>
+
+<h1 th:text="${post.title}"></h1>
+<p>
+    投稿者: <span th:text="${post.authorUsername}"></span> /
+    投稿日: <span th:text="${#temporals.format(post.createdAt, 'yyyy-MM-dd HH:mm')}"></span>
+</p>
+<div th:text="${post.content}" style="white-space: pre-wrap;"></div>
+
+<!-- 投稿者本人/管理者チェックはStep6で追加予定。現時点ではログイン済みなら誰でも表示される -->
+<div sec:authorize="isAuthenticated()">
+    <a th:href="@{/posts/{id}/edit(id=${post.id})}">編集</a>
+    <form th:action="@{/posts/{id}/delete(id=${post.id})}" method="post" style="display:inline">
+        <button type="submit">削除</button>
+    </form>
+</div>
+
+<h2>コメント</h2>
+<p th:if="${#lists.isEmpty(comments)}">まだコメントがありません</p>
+<ul>
+    <li th:each="comment : ${comments}">
+        <span th:text="${comment.authorUsername}"></span>:
+        <span th:text="${comment.content}"></span>
+        <span th:text="${#temporals.format(comment.createdAt, 'yyyy-MM-dd HH:mm')}"></span>
+        <!-- 投稿者本人/管理者チェックはStep6で追加予定 -->
+        <form sec:authorize="isAuthenticated()"
+              th:action="@{/posts/{postId}/comments/{commentId}/delete(postId=${post.id},commentId=${comment.id})}"
+              method="post" style="display:inline">
+            <button type="submit">削除</button>
+        </form>
+    </li>
+</ul>
+
+<div sec:authorize="isAuthenticated()">
+    <form th:action="@{/posts/{id}/comments(id=${post.id})}" th:object="${commentForm}" method="post">
+        <div>
+            <textarea th:field="*{content}" rows="3" placeholder="コメントを入力"></textarea>
+            <p th:if="${#fields.hasErrors('content')}" th:errors="*{content}" style="color:red;"></p>
+        </div>
+        <button type="submit">コメントする</button>
+    </form>
+</div>
+<p sec:authorize="!isAuthenticated()"><a th:href="@{/login}">ログイン</a>するとコメントできます</p>
+</body>
+</html>

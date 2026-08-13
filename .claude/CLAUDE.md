@@ -97,9 +97,13 @@ src/main/resources/
   - 動作確認用に`AuthController`/`RegisterForm`/`UserService`/`login.html`/`register.html`も作成済み
   - curlで登録→ログイン成功/失敗→CSRF拒否まで手動テスト済み
   - `/error`と`/h2-console/**`をpermitAllにする追加対応が必要だった(下記の注意点を参照)
-- [ ] 5. Post/CommentのCRUD実装(MyBatis XML) ← **次回はここから**
-  - 役割分担: 単純CRUD(Mapper雛形)はClaude、JOIN/動的SQLを使う複雑なクエリは人間
-- [ ] 6. 認可制御の追加(投稿者本人チェックなど、SpEL or Service層)
+- [x] 5. Post/CommentのCRUD実装(MyBatis XML)
+  - 役割分担通り: 単純CRUD(insert/update/deleteById)はClaude、投稿者usernameをJOINで取得するfindAll/findById/findByPostIdは人間が実装
+  - Post: 一覧・詳細・新規作成・編集・削除。Comment: 投稿詳細ページでの一覧表示・投稿・削除
+  - curlで登録→ログイン→投稿作成→一覧/詳細表示→コメント投稿→編集→コメント削除→ログアウト→匿名での削除拒否(CSRF token不在時403、有効token時は/loginへ302)まで一通り手動テスト済み
+  - `Post`/`Comment`ドメインに`authorUsername`という非永続フィールドを追加し、JOIN結果のみそこに詰める設計にした(insert/updateでは使わない)
+  - Post/Comment編集・削除は現時点では「ログイン済みなら誰でも可能」。投稿者本人/管理者チェックはStep6で追加する(コード中に`// 投稿者本人/管理者チェックはStep6で追加する`とコメントあり)
+- [ ] 6. 認可制御の追加(投稿者本人チェックなど、SpEL or Service層) ← **次回はここから**
 - [ ] 7. エラーハンドリング(未ログイン→ログイン画面、権限なし→403)
 
 ## 実装時の注意点(過去の議論より)
@@ -113,6 +117,9 @@ src/main/resources/
 - BANされたユーザー(enabled=false)のログイン試行は`DisabledException`となり、`UserDetailsService`側で明示的にハンドリングしないとログイン画面に汎用エラーしか出せない点に注意
 - `authorizeHttpRequests`はデフォルトで`FORWARD`/`ERROR`ディスパッチにも適用される。Spring Bootの404などは内部的に`/error`へフォワードされるため、`/error`を`permitAll`しないと「本来公開のはずのページなのに未ログイン時だけログイン画面に飛ばされる」という紛らわしい挙動になる
 - H2コンソール(`/h2-console/**`)を使うには、`permitAll`に加えて①`headers().frameOptions().sameOrigin()`(デフォルトの`X-Frame-Options: DENY`だとiframe表示できない)②`csrf().ignoringRequestMatchers("/h2-console/**")`(H2コンソール自身のフォームはCSRFトークンを付与しない)の2点が追加で必要
+- `users`/`posts`/`comments`は全テーブルに`created_at`列があるため、JOINしたSELECTで`ORDER BY created_at`のようにテーブル修飾を省略すると曖昧になり得る。H2ではSELECT句に出したテーブルの列で解決されエラーにはならなかったが(実機確認済み)、DBエンジン依存の挙動なので`ORDER BY posts.created_at`のように明示するのが望ましい
+- Thymeleafで`sec:authorize`を使うには`thymeleaf-extras-springsecurity6`をpom.xmlに追加する必要がある(Spring Boot本体には含まれない)
+- 編集・削除フォームを`sec:authorize="isAuthenticated()"`で非表示にしていても、それはUI上の話でしかない。未ログインユーザーが直接POSTを叩いた場合の挙動もcurlで確認する価値がある(本アプリでは想定通り、有効なCSRFトークンがあれば`/login`へ302リダイレクトされ、実際には削除されないことを確認済み)
 
 ## コーディング方針
 

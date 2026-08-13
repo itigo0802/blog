@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>投稿一覧 - Blog</title>
+</head>
+<body>
+<nav>
+    <span sec:authorize="isAuthenticated()">
+        ようこそ、<span sec:authentication="name"></span>さん
+        <a th:href="@{/posts/new}">新規投稿</a>
+        <form th:action="@{/logout}" method="post" style="display:inline">
+            <button type="submit">ログアウト</button>
+        </form>
+    </span>
+    <span sec:authorize="!isAuthenticated()">
+        <a th:href="@{/login}">ログイン</a>
+        <a th:href="@{/register}">会員登録</a>
+    </span>
+</nav>
+
+<h1>投稿一覧</h1>
+
+<p th:if="${#lists.isEmpty(posts)}">まだ投稿がありません</p>
+
+<ul>
+    <li th:each="post : ${posts}">
+        <a th:href="@{/posts/{id}(id=${post.id})}" th:text="${post.title}"></a>
+        <span th:text="'by ' + ${post.authorUsername}"></span>
+        <span th:text="${#temporals.format(post.createdAt, 'yyyy-MM-dd HH:mm')}"></span>
+    </li>
+</ul>
+</body>
+</html>

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.itigotti.blog.mapper.CommentMapper">
+
+    <!-- comments単体のカラムに加え、JOINで取得したusers.usernameをauthorUsernameへマッピングする -->
+    <resultMap id="commentResultMap" type="com.itigotti.blog.domain.Comment">
+        <id property="id" column="id"/>
+        <result property="content" column="content"/>
+        <result property="postId" column="post_id"/>
+        <result property="authorId" column="author_id"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="authorUsername" column="author_username"/>
+    </resultMap>
+
+    <select id="findByPostId" resultMap="commentResultMap">
+        SELECT comments.id, comments.content, comments.post_id, comments.author_id, comments.created_at, users.username AS author_username
+        FROM comments
+        JOIN users ON comments.author_id = users.id
+        WHERE comments.post_id = #{postId}
+        ORDER BY comments.created_at ASC
+    </select>
+
+    <select id="findById" parameterType="long" resultMap="commentResultMap">
+        SELECT *
+        FROM comments
+        WHERE id = #{id}
+    </select>
+
+    <insert id="insert" parameterType="com.itigotti.blog.domain.Comment" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO comments (content, post_id, author_id)
+        VALUES (#{content}, #{postId}, #{authorId})
+    </insert>
+
+    <delete id="deleteById" parameterType="long">
+        DELETE
+        FROM comments
+        WHERE id = #{id}
+    </delete>
+
+</mapper>

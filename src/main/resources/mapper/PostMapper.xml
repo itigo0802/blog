@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.itigotti.blog.mapper.PostMapper">
+
+    <!-- posts単体のカラムに加え、JOINで取得したusers.usernameをauthorUsernameへマッピングする -->
+    <resultMap id="postResultMap" type="com.itigotti.blog.domain.Post">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="authorId" column="author_id"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="authorUsername" column="author_username"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="postResultMap">
+        SELECT posts.id, posts.title, posts.content, posts.author_id, posts.created_at, posts.updated_at, users.username AS author_username
+        FROM posts
+        JOIN users ON posts.author_id = users.id
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="findById" parameterType="long" resultMap="postResultMap">
+        SELECT posts.id, posts.title, posts.content, posts.author_id, posts.created_at, posts.updated_at, users.username AS author_username
+        FROM posts
+        JOIN users ON posts.author_id = users.id
+        WHERE posts.id = #{id}
+    </select>
+
+    <insert id="insert" parameterType="com.itigotti.blog.domain.Post" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO posts (title, content, author_id)
+        VALUES (#{title}, #{content}, #{authorId})
+    </insert>
+
+    <update id="update" parameterType="com.itigotti.blog.domain.Post">
+        UPDATE posts
+        SET title      = #{title},
+            content     = #{content},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById" parameterType="long">
+        DELETE
+        FROM posts
+        WHERE id = #{id}
+    </delete>
+
+</mapper>
