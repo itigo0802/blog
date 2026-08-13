@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>ユーザー管理 - Blog</title>
+</head>
+<body>
+<nav>
+    <a th:href="@{/posts}">投稿一覧へ戻る</a>
+</nav>
+
+<h1>ユーザー管理</h1>
+
+<table border="1" cellpadding="4">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>ユーザー名</th>
+        <th>メール</th>
+        <th>ロール</th>
+        <th>状態</th>
+        <th>操作</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="user : ${users}">
+        <td th:text="${user.id}"></td>
+        <td th:text="${user.username}"></td>
+        <td th:text="${user.email}"></td>
+        <td th:text="${user.role}"></td>
+        <td th:text="${user.enabled} ? '有効' : 'BAN中'"></td>
+        <td>
+            <form th:if="${user.enabled}"
+                  th:action="@{/admin/users/{id}/ban(id=${user.id})}" method="post" style="display:inline">
+                <button type="submit">BAN</button>
+            </form>
+            <form th:unless="${user.enabled}"
+                  th:action="@{/admin/users/{id}/unban(id=${user.id})}" method="post" style="display:inline">
+                <button type="submit">BAN解除</button>
+            </form>
+        </td>
+    </tr>
+    </tbody>
+</table>
+</body>
+</html>

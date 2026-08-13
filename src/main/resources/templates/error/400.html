@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>不正なリクエスト - Blog</title>
+</head>
+<body>
+<h1>400 Bad Request</h1>
+<p th:text="${message} ?: 'このリクエストは処理できませんでした。'"></p>
+<p><a th:href="@{/admin/users}">ユーザー管理に戻る</a></p>
+</body>
+</html>

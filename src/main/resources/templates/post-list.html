@@ -9,6 +9,7 @@
     <span sec:authorize="isAuthenticated()">
         ようこそ、<span sec:authentication="name"></span>さん
         <a th:href="@{/posts/new}">新規投稿</a>
+        <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/users}">ユーザー管理</a>
         <form th:action="@{/logout}" method="post" style="display:inline">
             <button type="submit">ログアウト</button>
         </form>

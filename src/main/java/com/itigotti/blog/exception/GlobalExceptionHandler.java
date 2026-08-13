@@ -30,4 +30,16 @@ public class GlobalExceptionHandler {
         model.addAttribute("message", "ページが見つかりません");
         return "error/404";
     }
+
+    /**
+     * 管理者が自分自身をBANしようとした場合(SelfBanException)を400として返す。
+     * リクエスト自体(自分自身をBAN対象に指定したこと)が不正、という意味で400を採用。
+     */
+    @ExceptionHandler(SelfBanException.class)
+    public String handleSelfBan(SelfBanException e, HttpServletResponse response, Model model) {
+        log.warn(e.getMessage(), e);
+        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        model.addAttribute("message", "この操作は実行できません");
+        return "error/400";
+    }
 }

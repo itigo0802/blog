@@ -43,4 +43,16 @@
         VALUES (#{username}, #{email}, #{password}, #{role}, #{enabled})
     </insert>
 
+    <select id="findAll" resultMap="userResultMap">
+        SELECT *
+        FROM users
+        ORDER BY users.created_at
+    </select>
+
+    <update id="updateEnabled">
+        UPDATE users
+        SET enabled = #{enabled}
+        WHERE id = #{id}
+    </update>
+
 </mapper>

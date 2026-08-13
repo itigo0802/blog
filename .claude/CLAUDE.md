@@ -117,6 +117,16 @@ src/main/resources/
   - ログレベルの検討: 「存在しないURLへのアクセス」は日常的に起こりうる正常な事象なので`ERROR`ではなく`WARN`を採用(ERRORでアラート連携している場合に無駄な通知が飛ぶのを避けるため)
   - curlでの検証時、403ページがJSON応答になって見えたことがあったが、これはcurlのデフォルト`Accept: */*`がSpring Bootの`BasicErrorController`のコンテントネゴシエーションでHTML側に倒れなかっただけで、`Accept: text/html`を明示すれば独自テンプレートが返ることを確認済み(実ブラウザは常にtext/htmlを明示するため実害なし)
   - 未ログイン→ログイン画面はStep4のformLoginの仕組みで既に動作済み(今回は回帰がないことのみ再確認)
+- [x] 8. ユーザーBAN機能(管理者のみ、`機能・権限設計`表に記載済みだが未実装だった項目)
+  - `UserMapper.findAll/updateEnabled`(単純CRUD、Claude) → `UserService.ban/unban`(Claude雛形+人間が自己BAN防止ガードを実装) → `AdminController`(`/admin/users`一覧・BAN・BAN解除、Claude) → `templates/admin/user-list.html`(Claude)、という一連の流れ
+  - `/admin/**`は`SecurityConfig`に元からStep4時点で`hasRole("ADMIN")`が設定済みだった(未使用のまま残っていた設定)ので、今回はSecurityConfig自体の変更は不要だった
+  - 自己BAN防止(`id.equals(principal.getId())`なら拒否)は人間が実装。`.equals()`比較を使う判断はStep6の学びがそのまま活きた
+  - 「拒否」の表現として独自例外`SelfBanException`(`RuntimeException`継承)を人間が初めて自作。`GlobalExceptionHandler`に`@ExceptionHandler(SelfBanException.class)`を追加し400 Bad Requestへ変換、`error/400.html`を新設(Claude、既存の403/404ハンドラと同じパターン踏襲)
+  - チェック例外/非チェック例外の違いを解説: 業務エラーを非チェック例外(`RuntimeException`系)に統一するのはSpringのお作法(`DataAccessException`が`SQLException`をラップする例と同じ)。既存の`AccessDeniedException`/`NoSuchElementException`もこの流儀に合わせている
+  - 動作確認はcurlではなくブラウザ自動化(claude-in-chrome)で実施。理由: H2コンソールがフレーム構成+JS依存でcurlでの操作が煩雑なため(Step6の注意点参照)。ブラウザでH2コンソールにJDBC URL`jdbc:h2:mem:blogdb`で接続し`UPDATE users SET role='ADMIN' WHERE username=...`を実行してテスト用管理者を作成
+    - H2コンソールへの接続時、`login.jsp`から`Connect`をクリックすると`login.do`に遷移するだけでSQL実行フレームが無い状態になることがあった。`/h2-console/frame.jsp?jsessionid=...`に直接遷移すると、スキーマツリー+SQL入力欄+結果表示が揃った正しいフレームで操作できた
+  - 5パターン確認: ①管理者が他人をBAN→一覧が「BAN中」に ②管理者が自分自身をBAN→`SelfBanException`経由で400ページ ③BAN中ユーザーのログイン試行→`/login?error`へリダイレクト(汎用メッセージなのは既知の制限、注意点参照) ④BAN解除→「有効」に復帰 ⑤ロールがUSERのままだとnavに「ユーザー管理」リンクが出ない(`sec:authorize="hasRole('ADMIN')"`)こともあわせて確認
+  - ブラウザ操作中、ログインフォームにChromeが過去の別セッションの認証情報(実際のメールアドレス)を自動入力する場面があった。フォームの値をアプリ側で明示的に上書きしてから送信することで対応(実運用コードの自動テストでも同様の配慮が必要になる場面)
 
 ## 実装時の注意点(過去の議論より)
 
@@ -135,6 +145,9 @@ src/main/resources/
 - curlでエラーページ(`/error`経由のもの)を検証するとき、`Accept`ヘッダを省略するとcurlは`*/*`を送るが、Spring Bootの`BasicErrorController`はそれだとJSON応答を返すことがある。`templates/error/<status>.html`が使われているかを確認したいときは`-H "Accept: text/html"`を明示すること(実ブラウザは常にtext/htmlを明示するのでアプリ側の実害はない)
 - `@ControllerAdvice`の`@ExceptionHandler`はDispatcherServlet内(Spring MVCの中)で例外を横取りする。Spring Securityの`AccessDeniedException`自動403変換はServlet Filter層(`ExceptionTranslationFilter`)で動くため、`@ExceptionHandler(AccessDeniedException.class)`を書くとその自動変換を奪ってしまう。棲み分けが必要な場合は対象の例外クラスを分けること
 - 編集・削除フォームを`sec:authorize="isAuthenticated()"`で非表示にしていても、それはUI上の話でしかない。未ログインユーザーが直接POSTを叩いた場合の挙動もcurlで確認する価値がある(本アプリでは想定通り、有効なCSRFトークンがあれば`/login`へ302リダイレクトされ、実際には削除されないことを確認済み)
+- 業務エラー用の独自例外は`RuntimeException`(非チェック例外)を継承するのが定石。チェック例外(`Exception`直下、`RuntimeException`の子孫でないもの)は`throws`宣言をコンパイラが強制するため、層を跨ぐたびに関係ない中間層まで宣言が伝播してしまう。Spring自身も`SQLException`(チェック例外)を`DataAccessException`(非チェック例外)でラップし直している
+- H2コンソール(`/h2-console/**`)はフレーム構成のページ。`login.jsp`→`Connect`後に遷移する`login.do`だけではSQL実行用フレームが無い場合があるため、ブラウザで直接操作するときは`/h2-console/frame.jsp?jsessionid=...`(スキーマツリー+SQL入力欄+結果表示が揃ったフレーム)に遷移すると確実
+- ログインフォームなどをブラウザ自動化で操作する際、Chromeが別セッションの保存済み認証情報を自動入力することがある。送信前にフォームの値をコード側で明示的に上書きし、実際に何を送信しているか確認してから進めるべき
 
 ## コーディング方針
 
