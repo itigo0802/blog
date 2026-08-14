@@ -146,6 +146,11 @@ src/main/resources/
   - 骨格と動作確認用の2テスト(未ログイン→リダイレクト、一般ユーザー→403)はClaudeが用意し、管理者によるBAN機能の3パターン(管理者は閲覧可/他人をBANすると対象がenabled=falseになる/自分自身をBANしようとすると400)を人間が実装
   - 2つ目のテスト(他人をBAN)は、それまでのテストと違いHTTPレスポンスの検証だけでなく、POST後に`userMapper.findByUsername(...).isEnabled()`でDBの状態変化まで確認する点が新要素だった
   - 全18件(Step10までの13件+今回の5件)がパスすることを確認してからコミット
+- [x] 12. MockMvcによる結合テストの追加(`CommentControllerIntegrationTest`)
+  - PostControllerIntegrationTestと全く同じパターン(投稿者本人による削除成功/他人による削除403/管理者による削除成功/CSRFトークンなしは403)の横展開。人間がパターンを覚えた直後だったため4パターンとも一度で実装できた
+  - コメントがぶら下がる記事自体の投稿者(`admin`)と、コメントの投稿者(`owner`)をあえて別人にしてテストデータを設計。同一人物にすると「本当に`comment.authorId`を見て判定しているか」を区別できなくなるため
+  - 実装時のハマりポイント: 「管理者は他人のコメントでも削除できる」テストで、URLの末尾`/delete`を書き忘れて`POST /posts/{postId}/comments/{commentId}`を叩いてしまい、意図しない404で失敗(Range for response status value 404 expected:REDIRECTION but was:CLIENT_ERROR)。他の3パターンとURLを見比べて自己修正した
+  - 全24件(Step11までの18件+今回の6件)がパスすることを確認してからコミット
 
 ## 実装時の注意点(過去の議論より)
 
