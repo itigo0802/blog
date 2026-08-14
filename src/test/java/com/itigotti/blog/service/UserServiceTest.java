@@ -47,12 +47,6 @@ class UserServiceTest {
         verify(userMapper).updateEnabled(2L, false);
     }
 
-    // TODO(human): 自分自身をBANしようとした場合のテストを書く
-    // - SelfBanExceptionがthrowされること
-    //   (AssertJのassertThatThrownBy(() -> userService.ban(1L, principal)).isInstanceOf(SelfBanException.class) が使える)
-    // - userMapper.updateEnabled()が一切呼ばれていないこと
-    //   (verify(userMapper, never()).updateEnabled(anyLong(), anyBoolean()) で確認できる。
-    //    anyLong/anyBooleanはorg.mockito.ArgumentMatchersのstaticメソッド)
     @Test
     void 自分自身をBANしようとするとSelfBanException() {
         CustomUserDetails principal = principal(1L);
