@@ -141,6 +141,11 @@ src/main/resources/
   - 実装時のハマりポイント: `PostController.edit()`の実際のリダイレクト先(`redirect:/posts/{id}`、詳細ページ)を`redirectedUrl("/posts")`(一覧ページ)と書き間違えて1回失敗。アサーションの期待値は実装を見ながら合わせるのではなく、仕様(編集後は詳細ページに戻る)から導くべき、という気づきを得た
   - CSRFトークンなしのテストで、`CsrfFilter`がSpring Securityのフィルタチェーン中で認可判定(`FilterSecurityInterceptor`)より手前に位置するため、認証済みでもCSRFトークンが無ければ403になる(401やログインリダイレクトにはならない)ことを実地で確認
   - 全13件(Step9までの7件+今回の6件)がパスすることを確認してからコミット
+- [x] 11. MockMvcによる結合テストの追加(`AdminControllerIntegrationTest`)
+  - `/admin/**`への`hasRole("ADMIN")`制限(SecurityConfig)は、Step8実装時ブラウザでの手動確認のみで自動テストが無かった箇所。PostControllerIntegrationTestのService層判定(`AuthorizationService.canModify()`)と違い、SecurityConfig自体の設定はMockMvc結合テストでしか自動検証できない点が今回のポイント
+  - 骨格と動作確認用の2テスト(未ログイン→リダイレクト、一般ユーザー→403)はClaudeが用意し、管理者によるBAN機能の3パターン(管理者は閲覧可/他人をBANすると対象がenabled=falseになる/自分自身をBANしようとすると400)を人間が実装
+  - 2つ目のテスト(他人をBAN)は、それまでのテストと違いHTTPレスポンスの検証だけでなく、POST後に`userMapper.findByUsername(...).isEnabled()`でDBの状態変化まで確認する点が新要素だった
+  - 全18件(Step10までの13件+今回の5件)がパスすることを確認してからコミット
 
 ## 実装時の注意点(過去の議論より)
 
