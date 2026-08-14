@@ -133,6 +133,14 @@ src/main/resources/
   - `UserServiceTest`: `UserService`は`UserMapper`(DB)に依存するため`@ExtendWith(MockitoExtension.class)`+`@Mock`で初めてMockitoを使用。他人BAN成功(Claudeがサンプル実装)/自己BAN時の`SelfBanException`と`updateEnabled()`が呼ばれないこと(`verify(..., never())`、人間が実装)の2パターン
   - ハマりポイント: `assertThatThrownBy(() -> userService.ban(...))`の直前に、ラムダに包まない素の`userService.ban(...)`呼び出しを書き残してしまい、その場で例外が飛んでテスト自体がErrorになった。`() -> ...`(ラムダ)は「後で実行される処理」であり、ラムダの外に書いたコードは通常通りその場で即時評価される、という違いを実演して確認した
   - 全7件(既存の`BlogApplicationTests`含む)がパスすることを確認してからコミット
+- [x] 10. MockMvcによる結合テストの追加(`PostControllerIntegrationTest`)
+  - Step9の単体テスト(Service層のみ、`AuthorizationService`は直接new、`UserService`はMockitoでMapperをモック)と異なり、`@SpringBootTest`+`@AutoConfigureMockMvc`で実際のSecurityFilterChain・実DB(H2)を経由させ、SecurityConfig(認証・CSRF)込みで検証する構成にした
+  - テストデータは`@Sql`スクリプトではなく、`UserMapper`/`PostMapper`を直接`@Autowired`して`@BeforeEach`で投入する方式を採用。MyBatisのSqlSessionはSpring管理のトランザクションに乗るため、テストメソッドに`@Transactional`を付けるだけで各テスト後に自動ロールバックされ、DBリセット用の後始末コードが不要になった
+  - Spring Boot 4.xで`@AutoConfigureMockMvc`のパッケージが`org.springframework.boot.test.autoconfigure.web.servlet`から`org.springframework.boot.webmvc.test.autoconfigure`に変更されていた(webmvc関連がstarter分割された影響)
+  - 骨格(MockMvcセットアップ、3ユーザー+投稿1件のテストデータ、`principal(User)`ヘルパー)と動作確認用の2テスト(一覧の匿名閲覧・未認証POSTの`/login`リダイレクト)はClaudeが用意し、認可・CSRFの中核4パターン(投稿者本人の編集成功/他人の編集403/管理者による他人の投稿削除成功/CSRFトークンなしは認証済みでも403)を人間が実装
+  - 実装時のハマりポイント: `PostController.edit()`の実際のリダイレクト先(`redirect:/posts/{id}`、詳細ページ)を`redirectedUrl("/posts")`(一覧ページ)と書き間違えて1回失敗。アサーションの期待値は実装を見ながら合わせるのではなく、仕様(編集後は詳細ページに戻る)から導くべき、という気づきを得た
+  - CSRFトークンなしのテストで、`CsrfFilter`がSpring Securityのフィルタチェーン中で認可判定(`FilterSecurityInterceptor`)より手前に位置するため、認証済みでもCSRFトークンが無ければ403になる(401やログインリダイレクトにはならない)ことを実地で確認
+  - 全13件(Step9までの7件+今回の6件)がパスすることを確認してからコミット
 
 ## 実装時の注意点(過去の議論より)
 
