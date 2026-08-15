@@ -15,10 +15,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
@@ -67,6 +69,26 @@ class PostControllerIntegrationTest {
         mockMvc.perform(get("/posts"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("post-list"));
+    }
+
+    @Test
+    void キーワード検索でタイトルまたは本文に一致する投稿のみ表示される() throws Exception {
+        createPost("Spring入門", "Bean定義について", owner.getId());
+        createPost("旅行記", "SpringでSpring Bootを学んだ話", owner.getId());
+        createPost("無関係な投稿", "無関係な本文", owner.getId());
+
+        mockMvc.perform(get("/posts").param("keyword", "Spring"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("post-list"))
+                .andExpect(model().attribute("posts", hasSize(2)));
+    }
+
+    @Test
+    void 一致しないキーワードでは0件になる() throws Exception {
+        mockMvc.perform(get("/posts").param("keyword", "存在しないキーワード"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("post-list"))
+                .andExpect(model().attribute("posts", hasSize(0)));
     }
 
     @Test

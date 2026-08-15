@@ -22,7 +22,16 @@
 
 <h1>投稿一覧</h1>
 
-<p th:if="${#lists.isEmpty(posts)}">まだ投稿がありません</p>
+<form th:action="@{/posts}" method="get">
+    <input type="text" name="keyword" th:value="${keyword}" placeholder="タイトル・本文を検索">
+    <button type="submit">検索</button>
+    <a th:if="${keyword}" th:href="@{/posts}">検索をクリア</a>
+</form>
+
+<p th:if="${#lists.isEmpty(posts)}">
+    <span th:if="${keyword}">「<span th:text="${keyword}"></span>」に一致する投稿はありません</span>
+    <span th:unless="${keyword}">まだ投稿がありません</span>
+</p>
 
 <ul>
     <li th:each="post : ${posts}">

@@ -15,10 +15,17 @@
         <result property="authorUsername" column="author_username"/>
     </resultMap>
 
+    <!-- keywordが指定されていればtitle/contentの部分一致(OR)で絞り込み、未指定なら全件返す -->
     <select id="findAll" resultMap="postResultMap">
         SELECT posts.id, posts.title, posts.content, posts.author_id, posts.created_at, posts.updated_at, users.username AS author_username
         FROM posts
         JOIN users ON posts.author_id = users.id
+        <where>
+            <if test="keyword != null and keyword != ''">
+                title LIKE CONCAT('%', #{keyword}, '%') OR
+                content LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
         ORDER BY created_at DESC
     </select>
 

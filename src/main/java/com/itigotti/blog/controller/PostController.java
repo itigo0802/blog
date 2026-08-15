@@ -27,8 +27,9 @@ public class PostController {
     }
 
     @GetMapping("/posts")
-    public String list(Model model) {
-        model.addAttribute("posts", postService.findAll());
+    public String list(@RequestParam(required = false) String keyword, Model model) {
+        model.addAttribute("posts", postService.findAll(keyword));
+        model.addAttribute("keyword", keyword);
         return "post-list";
     }
 

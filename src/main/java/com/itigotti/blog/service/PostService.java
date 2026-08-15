@@ -19,8 +19,8 @@ public class PostService {
     private final PostMapper postMapper;
     private final AuthorizationService authorizationService;
 
-    public List<Post> findAll() {
-        return postMapper.findAll();
+    public List<Post> findAll(String keyword) {
+        return postMapper.findAll(keyword);
     }
 
     public Post findById(Long id) {
