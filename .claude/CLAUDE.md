@@ -156,6 +156,13 @@ src/main/resources/
   - 骨格(GET `/login`・GET `/register`の動作確認2テスト)はClaudeが用意し、4パターン(有効な入力での登録成功+パスワードがハッシュ化されて保存されていること/ユーザー名重複でのエラー/Bean Validation違反でのエラー/CSRFトークンなしは403)を人間が実装
   - つまずきポイントが例年より細かく複数回あった: ①リダイレクト先の文字列を`"/login?register"`と`"registered"`の"d"を書き落として誤記(`AuthController`の実装文字列と見比べて自己修正)②`findByEmail("example")`のように、渡した値(username)とメソッド名(email検索)が噛み合っていない呼び出し③`model().attributeHasFieldErrorCode(...)`(エラーコードまで指定する必要がある重い方のmatcher)を選んでしまい、より単純な`attributeHasFieldErrors(name, fieldNames...)`に乗り換え④Bean Validation違反のテストに`.with(csrf())`を付け忘れ、`CsrfFilter`(認可判定より手前で動く)に403で弾かれてしまい、検証したかったバリデーションロジックまで到達していなかった(Step10の学びの実地での再発)
   - 全30件(Step12までの24件+今回の6件)がパスすることを確認してからコミット
+- [x] 14. MockMvcによる結合テストの追加(`LoginIntegrationTest`、`formLogin`自体の検証)
+  - Step9〜13の結合テストはいずれも「認可」(投稿者本人/管理者/CSRF)寄りだったが、`SecurityConfig`の`formLogin`(ログイン成功/失敗/BANユーザーの拒否)はStep4・Step8のブラウザ/curlでの手動確認のみで自動テストが無いまま残っていた最後のSecurityConfig未検証部分。POST `/login`は`AuthController`ではなくSpring Securityのフィルタ(`UsernamePasswordAuthenticationFilter`)が処理するため、`security`パッケージに`controller`パッケージとは別のテストクラスとして配置した
+  - 骨格(2種類のテストユーザー作成ヘルパー、有効ユーザーとBANユーザー)はClaudeが用意し、4パターン(正しい認証情報でのログイン成功+`authenticated()`によるセッション確立確認/誤ったパスワードでの失敗/存在しないユーザー名でも同じ`/login?error`になること(ユーザー列挙対策の確認)/BANユーザーは`DisabledException`だが結局同じ`/login?error`になること)を人間が実装
+  - 新しく使ったAPI: `SecurityMockMvcResultMatchers.authenticated()`/`unauthenticated()`(レスポンス後のSecurityContextの認証状態を直接検証)。Spring Boot 4.x系でのパッケージ再編に伴い、想定していた`org.springframework.security.test.web.servlet.result`ではなく`...response`パッケージに変わっていた(コンパイルエラーで発覚、Step10の注意点と同種の変更)
+  - つまずきポイント: `DisabledException`が実際に投げられたことを確認する方法が分からなくなった。これは`@ExceptionHandler`(`resolvedException()`)では検出できない — `DisabledException`はDispatcherServletより手前、Spring Securityのフィルタ内で発生・処理されるため。正解は`AuthenticationFailureHandler`がセッション属性`WebAttributes.AUTHENTICATION_EXCEPTION`に例外を保存する仕組みを使い、`request().sessionAttribute(WebAttributes.AUTHENTICATION_EXCEPTION, instanceOf(DisabledException.class))`で検証する
+  - 上記の`instanceOf(...)`実装時、IDEの自動importが`org.springframework.security.authentication.DisabledException`ではなく`org.junit.jupiter.api.Disabled`(テスト無効化アノテーション)を選んでしまい、テストが期待通りの理由で落ちた。エラーメッセージの`but:`行(実際の値は正しく`DisabledException`だった)から、importの取り違えだと自己診断できた
+  - 全34件(Step13までの30件+今回の4件)がパスすることを確認してからコミット
 
 ## 実装時の注意点(過去の議論より)
 
