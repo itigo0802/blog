@@ -151,6 +151,11 @@ src/main/resources/
   - コメントがぶら下がる記事自体の投稿者(`admin`)と、コメントの投稿者(`owner`)をあえて別人にしてテストデータを設計。同一人物にすると「本当に`comment.authorId`を見て判定しているか」を区別できなくなるため
   - 実装時のハマりポイント: 「管理者は他人のコメントでも削除できる」テストで、URLの末尾`/delete`を書き忘れて`POST /posts/{postId}/comments/{commentId}`を叩いてしまい、意図しない404で失敗(Range for response status value 404 expected:REDIRECTION but was:CLIENT_ERROR)。他の3パターンとURLを見比べて自己修正した
   - 全24件(Step11までの18件+今回の6件)がパスすることを確認してからコミット
+- [x] 13. MockMvcによる結合テストの追加(`AuthControllerIntegrationTest`)
+  - Post/Comment/AdminControllerIntegrationTestと違い、`AuthController`には「投稿者本人 or 管理者」のような認可判定が登場しない。代わりに会員登録フォームのBean Validation(`@NotBlank`/`@Size`/`@Email`)、Service層での重複チェック(`isUsernameTaken`/`isEmailTaken`)、CSRF保護という毛色の異なる観点を検証する回になった
+  - 骨格(GET `/login`・GET `/register`の動作確認2テスト)はClaudeが用意し、4パターン(有効な入力での登録成功+パスワードがハッシュ化されて保存されていること/ユーザー名重複でのエラー/Bean Validation違反でのエラー/CSRFトークンなしは403)を人間が実装
+  - つまずきポイントが例年より細かく複数回あった: ①リダイレクト先の文字列を`"/login?register"`と`"registered"`の"d"を書き落として誤記(`AuthController`の実装文字列と見比べて自己修正)②`findByEmail("example")`のように、渡した値(username)とメソッド名(email検索)が噛み合っていない呼び出し③`model().attributeHasFieldErrorCode(...)`(エラーコードまで指定する必要がある重い方のmatcher)を選んでしまい、より単純な`attributeHasFieldErrors(name, fieldNames...)`に乗り換え④Bean Validation違反のテストに`.with(csrf())`を付け忘れ、`CsrfFilter`(認可判定より手前で動く)に403で弾かれてしまい、検証したかったバリデーションロジックまで到達していなかった(Step10の学びの実地での再発)
+  - 全30件(Step12までの24件+今回の6件)がパスすることを確認してからコミット
 
 ## 実装時の注意点(過去の議論より)
 
