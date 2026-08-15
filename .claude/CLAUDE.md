@@ -168,6 +168,12 @@ src/main/resources/
   - 骨格(テストデータ、存在しない投稿詳細ページへのアクセスが404になることを確認する1テスト)はClaudeが用意し、2パターン(存在しない投稿の編集フォームは認証済みユーザーでも404になる/存在しないコメントの削除は認証済み+CSRFトークンありでも404になる)を人間が実装
   - `CommentService.delete()`は`commentMapper.findById(id)`のnullチェックが`authorizationService.canModify()`より先にあるため、「存在しない対象への権限判定」は起こり得ず常に404が優先される、という実装の読み方がそのままテスト設計(2パターン目)に対応した
   - 全37件(Step14までの34件+今回の3件)がパスすることを確認してからコミット
+- [x] 16. 記事検索機能(タイトル・本文のキーワード部分一致、MyBatis動的SQL)
+  - 技術方針(`MyBatis: JOINや動的SQL(<if>/<where>など)を使う複雑なクエリは人間が書く`)に明記されているのに、Step5時点のPost/Comment/UserのMapper XMLはJOINのみで`<if>`/`<where>`を1つも使っておらず、唯一手つかずのまま残っていた領域だった
+  - 役割分担通り: Controller(`@RequestParam(required = false) String keyword`の受け取り、検索フォームの値の保持)・Service(`postMapper.findAll(keyword)`への素通し)・Mapperインターフェース(`@Param("keyword")`のシグネチャ追加)・検索フォームのThymeleafはClaudeが用意し、`PostMapper.xml`の`findAll`の`<where>`/`<if>`本体を人間が実装
+  - 1回目の実装は`title = #{keyword} AND content = #{keyword}`(完全一致+AND)になっており、部分一致(`LIKE`)でもOR条件でもなかった。ヒントを提示して`OR`への修正はできたが、2回目も`title LIKE %#{keyword}% OR content LIKE %#{keyword}%`のように「プレースホルダの外側に生の`%`を置く」書き方でH2の`SQLSyntaxErrorException`(構文エラー)になった。`#{keyword}`はJDBCのプレースホルダ`?`に展開されるため、`%`はSQL文字列リテラルの一部として組み立てる必要がある、という説明の後、`CONCAT('%', #{keyword}, '%')`で3回目に成功
+  - 検証にはMockMvc結合テストではなく、`PostMapper`を直接呼ぶ使い捨てのJUnitテスト(コミットはせず確認後に削除)を都度使った。SQL構文エラーやLIKE条件の絞り込み結果を、HTTPやSecurityFilterChainを介さず最短距離で確認する狙い
+  - 最終的な動作確認と回帰防止のため、`PostControllerIntegrationTest`に検索結果2件(タイトルヒット・本文ヒット)/0件(不一致)の2パターンをClaudeが追加。全39件(Step15までの37件+今回の2件)がパスすることを確認してからコミット
 
 ## 実装時の注意点(過去の議論より)
 
