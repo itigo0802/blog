@@ -163,6 +163,11 @@ src/main/resources/
   - つまずきポイント: `DisabledException`が実際に投げられたことを確認する方法が分からなくなった。これは`@ExceptionHandler`(`resolvedException()`)では検出できない — `DisabledException`はDispatcherServletより手前、Spring Securityのフィルタ内で発生・処理されるため。正解は`AuthenticationFailureHandler`がセッション属性`WebAttributes.AUTHENTICATION_EXCEPTION`に例外を保存する仕組みを使い、`request().sessionAttribute(WebAttributes.AUTHENTICATION_EXCEPTION, instanceOf(DisabledException.class))`で検証する
   - 上記の`instanceOf(...)`実装時、IDEの自動importが`org.springframework.security.authentication.DisabledException`ではなく`org.junit.jupiter.api.Disabled`(テスト無効化アノテーション)を選んでしまい、テストが期待通りの理由で落ちた。エラーメッセージの`but:`行(実際の値は正しく`DisabledException`だった)から、importの取り違えだと自己診断できた
   - 全34件(Step13までの30件+今回の4件)がパスすることを確認してからコミット
+- [x] 15. MockMvcによる結合テストの追加(`GlobalExceptionHandlerIntegrationTest`、404(`NoSuchElementException`)ケースの検証)
+  - Step10〜14の結合テストは一貫して「認可」(`AccessDeniedException` → 403)寄りだったが、`GlobalExceptionHandler`のもう一方のハンドラ、`NoSuchElementException` → 404への変換は自動テストが無いまま残っていた最後の未検証パス。`PostController`/`CommentController`ではなく`exception`パッケージに配置したのは、Step14の`LoginIntegrationTest`(`security`パッケージ)と同じ判断(単一コントローラーではなく横断的な仕組みの検証のため)
+  - 骨格(テストデータ、存在しない投稿詳細ページへのアクセスが404になることを確認する1テスト)はClaudeが用意し、2パターン(存在しない投稿の編集フォームは認証済みユーザーでも404になる/存在しないコメントの削除は認証済み+CSRFトークンありでも404になる)を人間が実装
+  - `CommentService.delete()`は`commentMapper.findById(id)`のnullチェックが`authorizationService.canModify()`より先にあるため、「存在しない対象への権限判定」は起こり得ず常に404が優先される、という実装の読み方がそのままテスト設計(2パターン目)に対応した
+  - 全37件(Step14までの34件+今回の3件)がパスすることを確認してからコミット
 
 ## 実装時の注意点(過去の議論より)
 
