@@ -174,6 +174,13 @@ src/main/resources/
   - 1回目の実装は`title = #{keyword} AND content = #{keyword}`(完全一致+AND)になっており、部分一致(`LIKE`)でもOR条件でもなかった。ヒントを提示して`OR`への修正はできたが、2回目も`title LIKE %#{keyword}% OR content LIKE %#{keyword}%`のように「プレースホルダの外側に生の`%`を置く」書き方でH2の`SQLSyntaxErrorException`(構文エラー)になった。`#{keyword}`はJDBCのプレースホルダ`?`に展開されるため、`%`はSQL文字列リテラルの一部として組み立てる必要がある、という説明の後、`CONCAT('%', #{keyword}, '%')`で3回目に成功
   - 検証にはMockMvc結合テストではなく、`PostMapper`を直接呼ぶ使い捨てのJUnitテスト(コミットはせず確認後に削除)を都度使った。SQL構文エラーやLIKE条件の絞り込み結果を、HTTPやSecurityFilterChainを介さず最短距離で確認する狙い
   - 最終的な動作確認と回帰防止のため、`PostControllerIntegrationTest`に検索結果2件(タイトルヒット・本文ヒット)/0件(不一致)の2パターンをClaudeが追加。全39件(Step15までの37件+今回の2件)がパスすることを確認してからコミット
+- [x] 17. Post/CommentServiceの単体テスト(`PostServiceTest`/`CommentServiceTest`)を追加(Mockito)
+  - Step9でUserServiceTest/AuthorizationServiceTestのみ作成し、結合テスト(Step10・12)はService層をブラックボックスとして通していたため、`PostService`/`CommentService`単体は未着手のまま残っていた最後のService層テストの穴
+  - `AuthorizationService`は依存を持たない純粋ロジック(Step9で既にAuthorizationServiceTestとして直接検証済み)なので、`UserServiceTest`と違いモックにせず`new AuthorizationService()`の実インスタンスを組み合わせた。「投稿者本人 or 管理者」判定そのものの正しさは既存テストが担保しているため、ここでは`PostService`/`CommentService`がその判定結果を受けて`Mapper`を正しく呼ぶ/呼ばないかに集中する設計にした
+  - 骨格(`findById`/`delete`が存在しないIDで`NoSuchElementException`になることを確認する1テストずつ)はClaudeが用意し、各クラス2パターンずつ(本人による更新・削除の成功+Mapperが呼ばれる/本人でも管理者でもないユーザーによる`AccessDeniedException`+Mapperが呼ばれない、`UserServiceTest`の他人BAN成功/自己BAN拒否と同型)を人間が実装
+  - `PostServiceTest`で3回のつまずきがあった: ①`verify(postMapper).update(post(1L, 1L))`のように、ヘルパーメソッドを`when()`と`verify()`で別々に呼んでいたため引数が別インスタンスになり、Mockitoの`Argument(s) are different!`で失敗(`Post`は`equals()`未実装のため参照比較になる、CLAUDE.mdの「関連エンティティを持つクラスに`@Data`を使わない」方針の影響が単体テストにも波及する例)。ヘルパーの戻り値を変数に1回だけ保存してから`when`/`verify`両方で使う形に修正 ②拒否パターンで`postService.update(...)`をラムダに包まず素で呼んでしまい、その場で`AccessDeniedException`が飛んでテストがErrorに(Step9の全く同じつまずきの再発、`assertThatThrownBy(() -> ...)`の外に素の呼び出しを書き残す形)③`verify(postMapper).update(post)`(呼ばれたことの検証)のままにしていて、`never()`を付け忘れて`Wanted but not invoked`で失敗。「実装のバグ」ではなく「テストの主張の向き」が逆というケースだった
+  - `CommentServiceTest`では、`PostServiceTest`で踏んだのと全く同じ`never()`忘れがそのまま再発した。加えて`assertThatThrownBy(() -> commentService.delete(...))`に`.isInstanceOf(...)`が付いておらず、例外の型はおろか例外が投げられたことすら検証していない状態だった点も合わせて指摘して修正
+  - 全45件(Step16までの39件+今回の6件)がパスすることを確認してからコミット
 
 ## 実装時の注意点(過去の議論より)
 
